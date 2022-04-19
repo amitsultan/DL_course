@@ -20,7 +20,7 @@ class ANN:
 
 
     def softmax(self, Z):
-        Z = Z - np.max(Z)
+        Z = Z - np.max(Z, axis=0)
         exp_z = np.exp(Z)
         return exp_z / np.sum(exp_z, axis=0), Z
 
@@ -60,7 +60,7 @@ class ANN:
         return z_output, cache
 
     def compute_cost(self, AL, Y):
-        y_pred = np.log2(AL)
+        y_pred = np.log(AL[Y > 0])
         cost = -(y_pred * Y).sum() * (1 / AL.shape[1])
         return cost
 
@@ -87,7 +87,6 @@ class ANN:
         Z = activation_cache['Z']
         Y = activation_cache['Y']
         A, _ = self.softmax(Z)
-        print(A.shape)
         return A - Y  # L_model_backward sends AL which is enough for AL - Y but we created A from Z
 
     def linear_activation_backward(self, dA, cache, activation):
@@ -122,24 +121,41 @@ class ANN:
         return parameters
 
     def L_layer_model(self, X, Y, layers_dims, learning_rate, num_iterations, batch_size):
+        prev_val_loss = np.inf
         num_classes = len(np.unique(Y))
+        training_step = 0
+        ind = np.arange(X.shape[1])
+        np.random.shuffle(ind)
+        X_validation = X[:,ind[:int(np.ceil(0.2*X.shape[1]))]]
+        Y_validation = Y[:,ind[:int(np.ceil(0.2*X.shape[1]))]]
+
+        X_train = X[:,ind[int(np.ceil(0.2*X.shape[1])):]]
+        Y_train = Y[:,ind[int(np.ceil(0.2*X.shape[1])):]]
+
         params = self.initialize_parameters(layers_dims)
         history = []
+        accuracy_history = []
         for epoch in range(num_iterations):
-            for index in range(0, X.shape[0], batch_size):
-                batch_x = X[:, index:min(index + batch_size, X.shape[0])]
-                batch_y = Y[:, index:min(index + batch_size, Y.shape[1])]
-                print(batch_y.shape)
+            for index in range(0, X_train.shape[1], batch_size):
+                batch_x = X_train[ :,index:min(index + batch_size, X_train.shape[1])]
+                batch_y = Y_train[:, index:min(index + batch_size, Y_train.shape[1])]
                 z_output, cache = self.L_model_forward(batch_x, params, False)
+                if (index / 500)%100 == 0:
+                    acc = self.predict(X_validation, Y_validation, params)
+                    cost = self.compute_cost(z_output, batch_y)
+                    history.append(cost)
+                    accuracy_history.append(acc)
+                    print(f"{training_step} Training Step - Accuracy = {acc}, cost = {cost}")
+                    training_step += 1
                 grads = self.L_model_backward(z_output, batch_y, cache)
                 params = self.update_parameters(params, grads, learning_rate)
-                print(self.compute_cost(z_output, batch_y))
         return params, history
 
     def predict(self, X, Y, parameters):
         y_preds, cache = self.L_model_forward(X, parameters, False)
         a = np.argmax(y_preds, axis=0)
-        acc = np.sum(np.equal(Y, y_preds)) / len(Y)
+        y = np.argmax(Y, axis=0)
+        acc = np.sum(np.equal(y, a)) / len(y)
         return acc
 
 def convert_to_onehot_vector(Y):
@@ -159,5 +175,5 @@ def load_data():
 net = ANN()
 train_X, test_X, train_y, test_y = load_data()
 print(train_X.shape)
-params, history = net.L_layer_model(train_X, train_y, [784, 300, 200, 10], 0.03, 10, 500)
+params, history = net.L_layer_model(train_X, train_y, [784, 20, 7, 5, 10], 0.009, 30, 128)
 print(history)
