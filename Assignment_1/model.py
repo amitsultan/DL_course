@@ -8,7 +8,7 @@ class ANN:
         b = np.zeros(len(layer_dims))
         params = {}
         for i in range(1, len(layer_dims)):
-            params[f'w{i}'] = np.random.randn(layer_dims[i], layer_dims[i-1])
+            params[f'w{i}'] = np.random.randn(layer_dims[i], layer_dims[i-1]) * np.sqrt( 2 / layer_dims[i - 1])
             params[f'b{i}'] = np.random.randn(layer_dims[i], 1)
         return params
 
