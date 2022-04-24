@@ -409,6 +409,8 @@ def load_data():
 net = ANN()
 train_X, test_X, train_y, test_y = load_data()
 print(train_X.shape)
+params, history = net.L_layer_model(train_X, train_y, [784, 20, 7, 5, 10], 0.009, 30, 128)
+print(history)
 num_iterations = 100
 params, history = net.L_layer_model(X=train_X, Y=train_y, layers_dims=[784, 20, 7, 5, 10], learning_rate=0.009,
                                     num_iterations=num_iterations, batch_size=128)
