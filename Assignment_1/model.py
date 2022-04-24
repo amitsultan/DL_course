@@ -1,7 +1,9 @@
+import math
+
 from tensorflow.keras.datasets import mnist
 import numpy as np
 
-
+EPSILON = 0.001
 class ANN:
 
     def initialize_parameters(self, layer_dims: list) -> dict:
@@ -297,7 +299,8 @@ class ANN:
             costs – the values of the cost function (calculated by the compute_cost function). One value is to be saved after each 100 training iterations (e.g. 3000 iterations -> 30 values).
 
         """
-        prev_val_loss = np.inf
+        prev_val_acc = np.inf
+        converged = False
         num_classes = len(np.unique(Y))
         training_step = 0
         ind = np.arange(X.shape[1])
@@ -312,6 +315,11 @@ class ANN:
         history = []
         accuracy_history = []
         for epoch in range(num_iterations):
+            if converged:
+                print(f"Converged at epoch {epoch} out of {num_iterations}")
+                self.print_overall_accuracy(params,X_validation=X_validation, Y_validation=Y_validation,
+                                            X_train=X_train, Y_train=Y_train)
+                break
             for index in range(0, X_train.shape[1], batch_size):
                 batch_x = X_train[:, index:min(index + batch_size, X_train.shape[1])]
                 batch_y = Y_train[:, index:min(index + batch_size, Y_train.shape[1])]
@@ -319,6 +327,11 @@ class ANN:
                 if (index / 500) % 100 == 0:
                     acc = self.predict(X_validation, Y_validation, params)
                     cost = self.compute_cost(z_output, batch_y)
+                    if np.absolute((prev_val_acc - acc)) < EPSILON:
+                        converged = True
+                        break
+                    prev_val_acc = acc
+
                     history.append(cost)
                     accuracy_history.append(acc)
                     print(f"{training_step} Training Step - Accuracy = {acc}, cost = {cost}")
@@ -346,6 +359,26 @@ class ANN:
         y = np.argmax(Y, axis=0)
         acc = np.sum(np.equal(y, a)) / len(y)
         return acc
+
+    def print_overall_accuracy(self,params, **kwargs):
+        """
+        Description: The function receives the parameters of the trained neural network and the validation data and prints the accuracy of the trained neural network on the validation data.
+        :param params:
+        :param kwargs:
+        :return:
+        """
+        if 'X_train' in kwargs and 'Y_train' in kwargs:
+            X_train = kwargs['X_train']
+            Y_train = kwargs['Y_train']
+            print(f"Training accuracy: {self.predict(X_train, Y_train, params)}")
+        if 'X_validation' in kwargs and 'Y_validation' in kwargs:
+            X_validation = kwargs['X_validation']
+            Y_validation = kwargs['Y_validation']
+            print(f"Validation accuracy: {self.predict(X_validation, Y_validation, params)}")
+        if 'X_test' in kwargs and 'Y_test' in kwargs:
+            X_test = kwargs['X_test']
+            Y_test = kwargs['Y_test']
+            print(f"Test accuracy: {self.predict(X_test, Y_test, params)}")
 
 
 def convert_to_onehot_vector(Y):
@@ -375,5 +408,7 @@ def load_data():
 net = ANN()
 train_X, test_X, train_y, test_y = load_data()
 print(train_X.shape)
-params, history = net.L_layer_model(train_X, train_y, [784, 20, 7, 5, 10], 0.009, 30, 128)
+params, history = net.L_layer_model(X=train_X, Y=train_y, layers_dims=[784, 20, 7, 5, 10], learning_rate=0.009,
+                                    num_iterations=30, batch_size=128)
 print(history)
+print(net.print_overall_accuracy(params, X_test=test_X, Y_test=test_y))
