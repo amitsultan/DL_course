@@ -2,6 +2,7 @@ import math
 
 from tensorflow.keras.datasets import mnist
 import numpy as np
+import matplotlib.pyplot as plt
 
 EPSILON = 0.001
 class ANN:
@@ -408,7 +409,13 @@ def load_data():
 net = ANN()
 train_X, test_X, train_y, test_y = load_data()
 print(train_X.shape)
+num_iterations = 100
 params, history = net.L_layer_model(X=train_X, Y=train_y, layers_dims=[784, 20, 7, 5, 10], learning_rate=0.009,
-                                    num_iterations=30, batch_size=128)
+                                    num_iterations=num_iterations, batch_size=128)
+plt.plot(list(range(0,len(history) * 100, 100)), history)
+plt.title('Training loss over iterations')
+plt.xlabel('Num. Iterations')
+plt.ylabel('Cost')
+plt.show()
 print(history)
 print(net.print_overall_accuracy(params, X_test=test_X, Y_test=test_y))
