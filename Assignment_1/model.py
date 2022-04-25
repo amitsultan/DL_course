@@ -432,7 +432,7 @@ if __name__ == "__main__":
     num_iterations = 100
     start = time.time()
     params, history = net.L_layer_model(X=train_X, Y=train_y, layers_dims=[784, 20, 7, 5, 10], learning_rate=0.009,
-                                        num_iterations=num_iterations, batch_size=128, batchnorm=True, dropout=0.8)
+                                        num_iterations=num_iterations, batch_size=128, batchnorm=False, dropout=0.8)
     end = time.time()
     plt.plot(list(range(0,len(history) * 100, 100)), history)
     plt.title('Training loss over iterations')
@@ -441,4 +441,4 @@ if __name__ == "__main__":
     print(f'time: {end - start}s')
     plt.show()
     print(history)
-    print(net.print_overall_accuracy(params, X_test=test_X, Y_test=test_y, batchnorm=True))
+    print(net.print_overall_accuracy(params, X_test=test_X, Y_test=test_y, batchnorm=False))
