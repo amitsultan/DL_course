@@ -108,6 +108,7 @@ class GAN():
                 z = tf.random.normal((432, self.noise_dim))
                 gen_data = self.generator(z)
                 print('generated_data')
+        return history
 
     def save(self, path, name):
         assert os.path.isdir(path) == True, \
