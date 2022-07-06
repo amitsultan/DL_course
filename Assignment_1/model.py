@@ -28,6 +28,7 @@ class ANN:
         for i in range(1, len(layer_dims)):
             params[f'w{i}'] = np.random.randn(layer_dims[i], layer_dims[i - 1]) \
                               * np.sqrt(2 / layer_dims[i - 1])  # in order to help relu with convergence.
+            params[f'w{i}'] = np.random.randn(layer_dims[i], layer_dims[i-1]) * np.sqrt( 2 / layer_dims[i - 1])
             params[f'b{i}'] = np.random.randn(layer_dims[i], 1)
         return params
 
@@ -442,3 +443,8 @@ if __name__ == "__main__":
     plt.show()
     print(history)
     print(net.print_overall_accuracy(params, X_test=test_X, Y_test=test_y, batchnorm=False))
+net = ANN()
+train_X, test_X, train_y, test_y = load_data()
+print(train_X.shape)
+params, history = net.L_layer_model(train_X, train_y, [784, 20, 7, 5, 10], 0.009, 30, 128)
+print(history)
