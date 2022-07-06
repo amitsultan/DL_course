@@ -10,9 +10,11 @@ from tensorflow.keras.optimizers import Adam
 
 class GAN():
 
-    def __init__(self, gan_args):
-        [self.batch_size, lr, self.noise_dim,
-         self.data_dim, layers_dim] = gan_args
+    def __init__(self, batch_size, lr, noise_dim, data_dim):
+        self.batch_size = batch_size
+        self.lr = lr
+        self.noise_dim = noise_dim
+        self.data_dim = data_dim
 
         self.generator = Generator(). \
             build_model(noise_dim=self.noise_dim, data_dim=self.data_dim)
@@ -20,7 +22,7 @@ class GAN():
         self.discriminator = Discriminator(). \
             build_model(input_shape=self.data_dim)
 
-        optimizer = Adam(lr, 0.5)
+        optimizer = Adam(lr, beta_1=0.5)
 
         # Build and compile the discriminator
         self.discriminator.compile(loss='binary_crossentropy',
@@ -57,11 +59,7 @@ class GAN():
         x = train.loc[train_ix[start_i: stop_i]].values
         return np.reshape(x, (batch_size, -1))
 
-    def train(self, data, train_arguments):
-        [cache_prefix, epochs, sample_interval] = train_arguments
-
-        data_cols = data.columns
-
+    def train(self, data, cache_prefix, epochs, sample_interval):
         # Adversarial ground truths
         valid = np.ones((self.batch_size, 1))
         fake = np.zeros((self.batch_size, 1))
@@ -70,11 +68,7 @@ class GAN():
                    'D_acc': [],
                    'G_loss': []}
         for epoch in range(epochs):
-            
             for batch_idx in range(int(np.ceil(len(data)/self.batch_size))):
-                
-                
-
                 # ---------------------
                 #  Train Discriminator
                 # ---------------------
@@ -131,6 +125,7 @@ class Generator():
     def build_model(self, noise_dim, data_dim):
         input = Input(shape=noise_dim)
         x = Dense(512, activation=LeakyReLU(alpha=0.2))(input)
+        x = BatchNormalization()(x)
         x = Dropout(0.5)(x)
         x = Dense(data_dim, activation='tanh', kernel_initializer='glorot_normal')(x)
         return Model(inputs=input, outputs=x)
@@ -141,7 +136,7 @@ class Discriminator():
     def build_model(self, input_shape):
         input = Input(shape=input_shape)
         x = Dense(256, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(input)
-        # x = BatchNormalization()(x)
+        x = BatchNormalization()(x)
         x = Dropout(0.3)(x)
         x = Dense(1, activation='sigmoid')(x)
             # opt = tensorflow.keras.optimizers.Adam(lr=0.0002, beta_1=0.5)
