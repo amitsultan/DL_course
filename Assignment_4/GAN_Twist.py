@@ -8,16 +8,23 @@ from tensorflow.keras import Model
 from tensorflow.keras.optimizers import Adam
 
 
-class GAN():
+from tensorflow.keras.layers import Concatenate
+from tensorflow.keras.layers import Input, Dense, Dropout
+from tensorflow.keras import Model
+from tensorflow.keras.optimizers import Adam
+import numpy as np
 
-    def __init__(self, gan_args):
+import tensorflow as tf
+class GAN_RF():
+
+    def __init__(self, gan_args, clf):
         [self.batch_size, lr, self.noise_dim,
-         self.data_dim, layers_dim] = gan_args
-
-        self.generator = Generator(self.batch_size). \
+         self.data_dim, layers_dim, self.C] = gan_args
+        self.clf = clf
+        self.generator = Generator_RF(self.batch_size, self.C). \
             build_model(input_shape=(self.noise_dim,), dim=layers_dim, data_dim=self.data_dim)
 
-        self.discriminator = Discriminator(self.batch_size). \
+        self.discriminator = Discriminator_RF(self.batch_size, self.C). \
             build_model(input_shape=(self.data_dim,), dim=layers_dim)
 
         optimizer = Adam(lr, 0.5)
@@ -29,17 +36,18 @@ class GAN():
 
         # The generator takes noise as input and generates imgs
         z = Input(shape=(self.noise_dim,))
-        record = self.generator(z)
+        c = Input(shape=(1,))
+        record = self.generator([z, c])
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
-
+        y = Input(shape=(1,))
         # The discriminator takes generated images as input and determines validity
-        validity = self.discriminator(record)
+        validity = self.discriminator([record, y, c])
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(z, validity)
+        self.combined = Model([z, y,c], validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     def get_data_batch(self, train, batch_size, seed=0):
@@ -65,6 +73,7 @@ class GAN():
         # Adversarial ground truths
         valid = np.ones((self.batch_size, 1))
         fake = np.zeros((self.batch_size, 1))
+        # C = np.full((self.batch_size, 1), 0.8)
         history = {'D_loss': [],
                    'D_acc': [],
                    'G_loss': []}
@@ -72,15 +81,18 @@ class GAN():
             # ---------------------
             #  Train Discriminator
             # ---------------------
+            C = np.random.uniform(0, 1, self.batch_size)
             batch_data = self.get_data_batch(data, self.batch_size)
             noise = tf.random.normal((self.batch_size, self.noise_dim))
 
             # Generate a batch of new images
-            gen_data = self.generator.predict(noise)
-
+            gen_data = self.generator.predict([noise, C])
+            batch_x = batch_data[:,:-1]
+            bb_y = self.clf.predict_proba(batch_x)
             # Train the discriminator
-            d_loss_real = self.discriminator.train_on_batch(batch_data, valid)
-            d_loss_fake = self.discriminator.train_on_batch(gen_data, fake)
+            bb_gen_data_y = self.clf.predict_proba(gen_data[:,:-1])
+            d_loss_real = self.discriminator.train_on_batch([batch_data, bb_y[:,0], C], valid)
+            d_loss_fake = self.discriminator.train_on_batch([gen_data, bb_gen_data_y[:,0], C], fake)
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # ---------------------
@@ -88,7 +100,7 @@ class GAN():
             # ---------------------
             noise = tf.random.normal((self.batch_size, self.noise_dim))
             # Train the generator (to have the discriminator label samples as valid)
-            g_loss = self.combined.train_on_batch(noise, valid)
+            g_loss = self.combined.train_on_batch([noise, valid, C], valid)
             
             if epoch % 100 == 0:
                 # Plot the progress
@@ -104,10 +116,6 @@ class GAN():
                 self.generator.save_weights(model_checkpoint_base_name.format('generator', epoch))
                 self.discriminator.save_weights(model_checkpoint_base_name.format('discriminator', epoch))
 
-                # Here is generating the data
-                z = tf.random.normal((432, self.noise_dim))
-                gen_data = self.generator(z)
-                print('generated_data')
         return history
 
     def save(self, path, name):
@@ -124,31 +132,34 @@ class GAN():
         self.generator = self.generator.load_weights(path)
         return self.generator
 
-
-class Generator():
-    def __init__(self, batch_size):
+class Generator_RF():
+    def __init__(self, batch_size, C):
         self.batch_size = batch_size
+        self.C = C
 
     def build_model(self, input_shape, dim, data_dim):
         input_Z = Input(shape=input_shape, batch_size=self.batch_size)
         input_C = Input(shape=1, batch_size=self.batch_size)
-        x = Dense(dim, activation='relu')(input)
+        x = Concatenate(axis=1)([input_Z, input_C])
         x = Dense(dim * 2, activation='relu')(x)
         x = Dense(dim * 4, activation='relu')(x)
         x = Dense(data_dim)(x)
-        return Model(inputs=input, outputs=x)
-
-
-class Discriminator():
-    def __init__(self, batch_size):
+        return Model(inputs=[input_Z, input_C], outputs=x)
+    
+class Discriminator_RF():
+    def __init__(self, batch_size, C):
         self.batch_size = batch_size
+        self.C = C
 
     def build_model(self, input_shape, dim):
-        input = Input(shape=input_shape, batch_size=self.batch_size)
-        x = Dense(dim * 4, activation='relu')(input)
+        input_sample = Input(shape=input_shape, batch_size=self.batch_size)
+        input_Y = Input(shape=1, batch_size=self.batch_size)
+        input_C = Input(shape=1, batch_size=self.batch_size)
+        x = Concatenate(axis=1)([input_sample, input_Y, input_C])
+        x = Dense(dim * 4, activation='relu')(x)
         x = Dropout(0.1)(x)
         x = Dense(dim * 2, activation='relu')(x)
         x = Dropout(0.1)(x)
         x = Dense(dim, activation='relu')(x)
         x = Dense(1, activation='sigmoid')(x)
-        return Model(inputs=input, outputs=x)
+        return Model(inputs=[input_sample, input_Y, input_C], outputs=x)
