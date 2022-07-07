@@ -14,11 +14,11 @@ class GAN():
         [self.batch_size, lr, self.noise_dim,
          self.data_dim, layers_dim] = gan_args
 
-        self.generator = Generator(). \
-            build_model(noise_dim=self.noise_dim, data_dim=self.data_dim)
+        self.generator = Generator(self.batch_size). \
+            build_model(input_shape=(self.noise_dim,), dim=layers_dim, data_dim=self.data_dim)
 
-        self.discriminator = Discriminator(). \
-            build_model(input_shape=self.data_dim)
+        self.discriminator = Discriminator(self.batch_size). \
+            build_model(input_shape=(self.data_dim,), dim=layers_dim)
 
         optimizer = Adam(lr, 0.5)
 
@@ -65,7 +65,6 @@ class GAN():
         # Adversarial ground truths
         valid = np.ones((self.batch_size, 1))
         fake = np.zeros((self.batch_size, 1))
-        np.zeros((self.batch_size, 1))
         history = {'D_loss': [],
                    'D_acc': [],
                    'G_loss': []}
